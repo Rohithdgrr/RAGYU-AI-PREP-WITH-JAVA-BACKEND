@@ -38,7 +38,7 @@ const QuizSession: React.FC<QuizSessionProps> = ({ config, userSettings, onCompl
         const count = generatedQuestions.length;
         setP1Answers(new Array(count).fill(null));
         setP2Answers(new Array(count).fill(null));
-        setTimeLeft(60); // 1 minute per question per player default
+        setTimeLeft(0); // Start timer from 0
       } catch (err: any) {
         console.error("Quiz generation failed:", err);
         setError(err.message || "Failed to generate questions. Please check your connection and try again.");
@@ -53,23 +53,16 @@ const QuizSession: React.FC<QuizSessionProps> = ({ config, userSettings, onCompl
   const currentAnswers = activePlayer === 1 ? p1Answers : p2Answers;
   const setAnswers = activePlayer === 1 ? setP1Answers : setP2Answers;
 
-  // Timer Logic
+  // Timer Logic - counts up, no auto-advance
   useEffect(() => {
     if (isLoading || questions.length === 0) return;
     const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          // Auto-submit if time runs out
-          handleNextOrFinish();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setTimeLeft(prev => prev + 1);
       if (activePlayer === 1) setP1Time(t => t + 1);
       else setP2Time(t => t + 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [activePlayer, isLoading, questions.length]); // Removed isIntermission dependency
+  }, [activePlayer, isLoading, questions.length]);
 
   const handleOptionSelect = (optionIdx: number) => {
     const newAnswers = [...currentAnswers];
@@ -80,32 +73,29 @@ const QuizSession: React.FC<QuizSessionProps> = ({ config, userSettings, onCompl
   const handleNextOrFinish = () => {
     if (config.mode === QuizMode.SOLO) {
       // SOLO FLOW
-      if (currentIndex < questions.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-        setTimeLeft(60); // Reset timer for next question
-      } else {
-        finalizeResults();
-      }
+if (currentIndex < questions.length - 1) {
+          setCurrentIndex(currentIndex + 1);
+        } else {
+          finalizeResults();
+        }
     } else {
       // VERSUS FLOW (1 vs 1)
       // Logic: P1 answers Q1 -> Switch to P2 -> P2 answers Q1 -> Switch to P1 (Next Q)
       
-      if (activePlayer === 1) {
-        // Switch to Player 2 for the same question
-        setActivePlayer(2);
-        setTimeLeft(60);
-      } else {
-        // Player 2 finished their turn for this question.
-        if (currentIndex < questions.length - 1) {
-          // Switch back to Player 1 for NEXT question.
-          setActivePlayer(1);
-          setCurrentIndex(prev => prev + 1);
-          setTimeLeft(60);
+if (activePlayer === 1) {
+          // Switch to Player 2 for the same question
+          setActivePlayer(2);
         } else {
-          // Both players finished the last question.
-          finalizeResults();
+          // Player 2 finished their turn for this question.
+          if (currentIndex < questions.length - 1) {
+            // Switch back to Player 1 for NEXT question.
+            setActivePlayer(1);
+            setCurrentIndex(prev => prev + 1);
+          } else {
+            // Both players finished the last question.
+            finalizeResults();
+          }
         }
-      }
     }
   };
 
@@ -224,12 +214,12 @@ const QuizSession: React.FC<QuizSessionProps> = ({ config, userSettings, onCompl
              </div>
           </div>
 
-          {/* Timer Display */}
-          <div className="w-16 flex justify-end">
-            <div className={`px-2.5 py-1.5 rounded-xl border-2 font-mono text-[11px] font-black tracking-widest ${timeLeft < 20 ? 'border-rose-100 bg-rose-50 text-rose-600 animate-pulse' : 'border-blue-50 bg-blue-50/50 text-blue-600'}`}>
-              {formatTime(timeLeft)}
+{/* Timer Display */}
+            <div className="w-16 flex justify-end">
+              <div className="px-2.5 py-1.5 rounded-xl border-2 font-mono text-[11px] font-black tracking-widest border-blue-50 bg-blue-50/50 text-blue-600">
+                {formatTime(timeLeft)}
+              </div>
             </div>
-          </div>
         </div>
 
         {/* Dynamic Tab Underline */}

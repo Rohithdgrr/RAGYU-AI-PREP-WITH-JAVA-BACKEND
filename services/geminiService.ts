@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { LIBRA_SYSTEM_PROMPT } from "../constants";
 import { QuizConfig, Question, UserSettings } from "../types";
+import { getRecentQuestionContext, recordAskedQuestions } from "./questionHistoryService";
 
 const getGeminiApiKey = () => process.env.GEMINI_API_KEY || process.env.API_KEY || '';
 const getMistralApiKey = () => process.env.MISTRAL_API_KEY || '';
@@ -91,10 +92,13 @@ export const generateQuizQuestions = async (config: QuizConfig, userPreferences?
     }
   }
 
+  const historyContext = getRecentQuestionContext(config.exam, config.subject);
+
   const prompt = `Generate ${config.questionCount} multiple-choice questions for the ${config.exam} exam.
   Subject: ${config.subject}
   Topics: ${config.topics.length > 0 ? config.topics.join(', ') : 'General syllabus topics'}
   Difficulty: ${config.difficulty}${preferencesContext}
+${historyContext}
 
   REQUIREMENTS:
   1. Questions must be highly relevant to Indian Government exams (RRB, IBPS, SBI, SSC).
@@ -108,6 +112,7 @@ export const generateQuizQuestions = async (config: QuizConfig, userPreferences?
      - For Logic/Reasoning: Draw a flowchart or diagram.
      - Keep SVGs simple, using a standard viewBox="0 0 300 200". Use attractive colors (blues, emeralds, oranges).
   7. Return a JSON object with a "questions" key containing the array of questions.
+  8. **IMPORTANT**: Generate FRESH questions. If similar concepts must be tested, use different numbers, scenarios, or phrasings.
 
   JSON Structure:
   {
@@ -145,6 +150,7 @@ export const generateQuizQuestions = async (config: QuizConfig, userPreferences?
       if (jsonText) {
         const questions = parseQuizResponse(jsonText);
         if (questions.length > 0) {
+          recordAskedQuestions(questions, config.exam, config.subject);
           return questions;
         }
       }
@@ -160,6 +166,7 @@ export const generateQuizQuestions = async (config: QuizConfig, userPreferences?
       const jsonText = await callMistralChat([{ role: "user", content: prompt }], true);
       const questions = parseQuizResponse(jsonText);
       if (questions.length > 0) {
+        recordAskedQuestions(questions, config.exam, config.subject);
         return questions;
       }
       throw new Error("No questions generated from Mistral");

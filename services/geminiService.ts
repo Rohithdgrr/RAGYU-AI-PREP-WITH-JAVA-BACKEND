@@ -1,93 +1,43 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { LIBRA_SYSTEM_PROMPT } from "../constants";
 import { QuizConfig, Question, UserSettings } from "../types";
 import { getRecentQuestionContext, recordAskedQuestions } from "./questionHistoryService";
 
-const getGeminiApiKey = () => process.env.GEMINI_API_KEY || process.env.API_KEY || '';
-const getMistralApiKey = () => process.env.MISTRAL_API_KEY || '';
-const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
-
-const createGeminiClient = () => new GoogleGenAI({ apiKey: getGeminiApiKey() });
-
-const callMistralChat = async (messages: { role: string; content: string }[], jsonMode = false) => {
-  const response = await fetch(MISTRAL_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': `Bearer ${getMistralApiKey()}`
-    },
-    body: JSON.stringify({
-      model: "mistral-small-latest",
-      messages,
-      temperature: 0.7,
-      ...(jsonMode && { response_format: { type: "json_object" } })
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Mistral API Error: ${response.status} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  return data.choices[0].message.content;
-};
+const getApiKey = () => process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+const createClient = () => new GoogleGenAI({ apiKey: getApiKey(), apiVersion: "v1" });
 
 export const getLibraResponse = async (history: { role: string; content: string }[]) => {
-  const geminiKey = getGeminiApiKey();
+  const ai = createClient();
   
-  if (geminiKey) {
-    try {
-      const ai = createGeminiClient();
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: history.map(h => ({
-          role: h.role === 'user' ? 'user' : 'model',
-          parts: [{ text: h.content }]
-        })),
-        config: {
-          systemInstruction: LIBRA_SYSTEM_PROMPT,
-          temperature: 0.7,
-        },
-      });
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: history.map(h => ({
+        role: h.role === 'user' ? 'user' : 'model',
+        parts: [{ text: h.content }]
+      })),
+      config: {
+        systemInstruction: LIBRA_SYSTEM_PROMPT,
+        temperature: 0.7,
+      },
+    });
 
-      if (response.text) {
-        return response.text;
-      }
-      throw new Error("Empty Gemini response");
-    } catch (error) {
-      console.warn("Gemini failed, falling back to Mistral:", error);
-    }
+    return response.text || "I'm sorry, I couldn't process that.";
+  } catch (error) {
+    console.error("Gemini Error:", error);
+    return "Something went wrong while contacting Gemini. Please verify your API access and try again.";
   }
-
-  const mistralKey = getMistralApiKey();
-  if (mistralKey) {
-    try {
-      const messages = [
-        { role: "system", content: LIBRA_SYSTEM_PROMPT },
-        ...history.map(h => ({
-          role: h.role === 'user' ? 'user' : 'assistant',
-          content: h.content
-        }))
-      ];
-      return await callMistralChat(messages);
-    } catch (error) {
-      console.error("Mistral Error:", error);
-    }
-  }
-
-  return "AI service unavailable. Please check your API keys.";
 };
 
 export const generateQuizQuestions = async (config: QuizConfig, userPreferences?: UserSettings): Promise<Question[]> => {
+  const ai = createClient();
+
   let preferencesContext = '';
   if (userPreferences) {
     const topics = userPreferences.preferredTopics?.join(', ');
     if (topics) {
       preferencesContext = `\n  User Context:
-  - Preferred Topics: ${topics}
-  
+  - Preferred Topics: ${topics}\n  
   Instruction: If the user's preferred topics fall within the requested Subject (${config.subject}), prioritize generating questions for them.`;
     }
   }
@@ -133,50 +83,29 @@ ${historyContext}
   }
   `;
 
-  const geminiKey = getGeminiApiKey();
-  if (geminiKey) {
-    try {
-      const ai = createGeminiClient();
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: {
-          temperature: 0.7,
-          responseMimeType: "application/json",
-        },
-      });
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        temperature: 0.7,
+        responseMimeType: "application/json",
+      },
+    });
 
-      const jsonText = response.text;
-      if (jsonText) {
-        const questions = parseQuizResponse(jsonText);
-        if (questions.length > 0) {
-          recordAskedQuestions(questions, config.exam, config.subject);
-          return questions;
-        }
-      }
-      throw new Error("Empty or invalid Gemini response");
-    } catch (error) {
-      console.warn("Gemini quiz generation failed, falling back to Mistral:", error);
-    }
-  }
-
-  const mistralKey = getMistralApiKey();
-  if (mistralKey) {
-    try {
-      const jsonText = await callMistralChat([{ role: "user", content: prompt }], true);
+    const jsonText = response.text;
+    if (jsonText) {
       const questions = parseQuizResponse(jsonText);
       if (questions.length > 0) {
         recordAskedQuestions(questions, config.exam, config.subject);
         return questions;
       }
-      throw new Error("No questions generated from Mistral");
-    } catch (error) {
-      console.error("Mistral quiz generation error:", error);
-      throw error;
     }
+    throw new Error("Empty or invalid Gemini response");
+  } catch (error) {
+    console.error("Quiz Generation Error:", error);
+    throw error;
   }
-
-  throw new Error("No AI service available. Please configure GEMINI_API_KEY or MISTRAL_API_KEY.");
 };
 
 function parseQuizResponse(jsonText: string): Question[] {

@@ -75,24 +75,27 @@ export const generateQuizQuestions = async (config: QuizConfig, userPreferences?
      - For Data Interpretation: Draw a simple bar/pie chart.
      - For Logic/Reasoning: Draw a flowchart or diagram.
      - Keep SVGs simple, using a standard viewBox="0 0 300 200". Use attractive colors (blues, emeralds, oranges).
-  7. Return STRICT JSON as an array of objects.
+    7. Return a JSON object with a "questions" key containing the array of questions.
+    8. Ensure the output is valid JSON.
 
-  JSON Schema:
-  [
+    JSON Structure:
     {
-      "id": "string",
-      "text": "string (markdown/latex)",
-      "options": ["string", "string", "string", "string"],
-      "correctIndex": number (0-3),
-      "explanation": {
-        "steps": ["string"],
-        "tricks": ["string"],
-        "concept": "string",
-        "visualAid": "string (raw <svg>)"
-      }
+      "questions": [
+        {
+          "id": "string",
+          "text": "string (markdown/latex)",
+          "options": ["string", "string", "string", "string"],
+          "correctIndex": number (0-3),
+          "explanation": {
+            "steps": ["string"],
+            "tricks": ["string"],
+            "concept": "string",
+            "visualAid": "string (raw <svg>)"
+          }
+        }
+      ]
     }
-  ]
-  `;
+    `;
 
   try {
     const response = await fetch(MISTRAL_API_URL, {
@@ -113,8 +116,15 @@ export const generateQuizQuestions = async (config: QuizConfig, userPreferences?
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `Mistral API Error: ${response.status}`);
+      const errorText = await response.text();
+      let errorMessage = `Mistral API Error: ${response.status}`;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
@@ -124,27 +134,30 @@ export const generateQuizQuestions = async (config: QuizConfig, userPreferences?
       throw new Error("Empty response from AI");
     }
 
-    // Mistral with response_format: json_object might still return a root object if not careful
-    // but the prompt asks for an array. Let's handle both.
     let parsed = JSON.parse(jsonText.trim());
     let questions: Question[] = [];
     
-    if (Array.isArray(parsed)) {
-      questions = parsed;
-    } else if (parsed.questions && Array.isArray(parsed.questions)) {
+    if (parsed.questions && Array.isArray(parsed.questions)) {
       questions = parsed.questions;
-    } else if (typeof parsed === 'object') {
-      // Sometimes it wraps it in a key like "data" or just returns one object
-      const firstKey = Object.keys(parsed)[0];
-      if (Array.isArray(parsed[firstKey])) {
-        questions = parsed[firstKey];
+    } else if (Array.isArray(parsed)) {
+      questions = parsed;
+    } else {
+      // Fallback: search for any array in the object
+      const firstArrayKey = Object.keys(parsed).find(key => Array.isArray(parsed[key]));
+      if (firstArrayKey) {
+        questions = parsed[firstArrayKey];
       }
+    }
+
+    if (questions.length === 0) {
+      throw new Error("No questions were generated. Please try a different topic.");
     }
 
     return questions.map((q, index) => ({
       ...q,
-      id: `ai-gen-${index}-${Date.now()}` // Ensure unique ID on client side
+      id: q.id || `ai-gen-${index}-${Date.now()}`
     }));
+
 
   } catch (error) {
     console.error("Quiz Generation Error:", error);

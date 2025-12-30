@@ -39,8 +39,9 @@ const QuizSession: React.FC<QuizSessionProps> = ({ config, userSettings, onCompl
         setP1Answers(new Array(count).fill(null));
         setP2Answers(new Array(count).fill(null));
         setTimeLeft(60); // 1 minute per question per player default
-      } catch (err) {
-        setError("Failed to generate questions. Please check your connection and try again.");
+      } catch (err: any) {
+        console.error("Quiz generation failed:", err);
+        setError(err.message || "Failed to generate questions. Please check your connection and try again.");
       } finally {
         setIsLoading(false);
       }

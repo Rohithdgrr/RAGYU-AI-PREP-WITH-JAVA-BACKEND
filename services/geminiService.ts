@@ -3,10 +3,9 @@ import { LIBRA_SYSTEM_PROMPT } from "../constants";
 import { QuizConfig, Question, UserSettings } from "../types";
 
 const getApiKey = () => process.env.GEMINI_API_KEY || process.env.API_KEY || '';
-const createClient = () => new GoogleGenAI({ apiKey: getApiKey(), apiVersion: "v1beta" });
+const createClient = () => new GoogleGenAI({ apiKey: getApiKey() });
 
 export const getLibraResponse = async (history: { role: string; content: string }[]) => {
-  // Re-initialize to ensure the latest API Key is used if it changes
   const ai = createClient();
   
   try {
@@ -59,51 +58,34 @@ export const generateQuizQuestions = async (config: QuizConfig, userPreferences?
      - For Data Interpretation: Draw a simple bar/pie chart.
      - For Logic/Reasoning: Draw a flowchart or diagram.
      - Keep SVGs simple, using a standard viewBox="0 0 300 200". Use attractive colors (blues, emeralds, oranges).
-  7. Return STRICT JSON.
-  `;
+  7. Return a JSON object with a "questions" key containing the array of questions.
 
-  const responseSchema: Schema = {
-    type: Type.ARRAY,
-    items: {
-      type: Type.OBJECT,
-      properties: {
-        id: { type: Type.STRING },
-        text: { type: Type.STRING, description: "The question text. Use markdown and LaTeX where appropriate." },
-        options: {
-          type: Type.ARRAY,
-          items: { type: Type.STRING },
-          description: "Exactly 4 options"
-        },
-        correctIndex: { type: Type.INTEGER, description: "Index of the correct option (0-3)" },
-        explanation: {
-          type: Type.OBJECT,
-          properties: {
-            steps: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description: "Step-by-step solution"
-            },
-            tricks: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description: "Shortcuts or tips"
-            },
-            concept: { type: Type.STRING, description: "The core concept tested" },
-            visualAid: { type: Type.STRING, description: "A raw SVG string (<svg ...>...</svg>) illustrating the solution or concept. Do not wrap in markdown code blocks." }
-          },
-          required: ["steps", "tricks", "concept", "visualAid"]
+  JSON Structure:
+  {
+    "questions": [
+      {
+        "id": "string",
+        "text": "string (markdown/latex)",
+        "options": ["string", "string", "string", "string"],
+        "correctIndex": number (0-3),
+        "explanation": {
+          "steps": ["string"],
+          "tricks": ["string"],
+          "concept": "string",
+          "visualAid": "string (raw <svg>)"
         }
-      },
-      required: ["id", "text", "options", "correctIndex", "explanation"]
-    }
-  };
+      }
+    ]
+  }
+  `;
 
     try {
       const response = await ai.models.generateContent({
         model: "gemini-1.5-flash",
-        contents: prompt,
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           temperature: 0.7,
+          responseMimeType: "application/json",
         },
       });
 
@@ -112,22 +94,31 @@ export const generateQuizQuestions = async (config: QuizConfig, userPreferences?
         throw new Error("Empty response from AI");
       }
 
-      // Clean markdown if present
-      if (jsonText.includes('```json')) {
-        jsonText = jsonText.split('```json')[1].split('```')[0].trim();
-      } else if (jsonText.includes('```')) {
-        jsonText = jsonText.split('```')[1].split('```')[0].trim();
-      }
+      const parsed = JSON.parse(jsonText.trim());
+      let questions: Question[] = [];
       
-      // Parse JSON and ensure IDs are unique if the AI duplicated them (rare but possible)
-      const questions = JSON.parse(jsonText.trim()) as Question[];
-    return questions.map((q, index) => ({
-      ...q,
-      id: `ai-gen-${index}-${Date.now()}` // Ensure unique ID on client side
-    }));
+      if (parsed.questions && Array.isArray(parsed.questions)) {
+        questions = parsed.questions;
+      } else if (Array.isArray(parsed)) {
+        questions = parsed;
+      } else {
+        const firstArrayKey = Object.keys(parsed).find(key => Array.isArray(parsed[key]));
+        if (firstArrayKey) {
+          questions = parsed[firstArrayKey];
+        }
+      }
 
-  } catch (error) {
+      if (questions.length === 0) {
+        throw new Error("No questions were generated.");
+      }
+
+      return questions.map((q, index) => ({
+        ...q,
+        id: q.id || `ai-gen-${index}-${Date.now()}`
+      }));
+
+  } catch (error: any) {
     console.error("Quiz Generation Error:", error);
-    throw error;
+    throw new Error(error.message || "Failed to generate questions with Gemini.");
   }
 };

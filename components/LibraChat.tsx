@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
-import { getLibraResponse } from '../services/mistralService';
+import { getLibraResponse } from '../services/geminiService';
 import FormattedText from './FormattedText';
 import { PaperAirplaneIcon, SparklesIcon } from '@heroicons/react/24/solid';
 

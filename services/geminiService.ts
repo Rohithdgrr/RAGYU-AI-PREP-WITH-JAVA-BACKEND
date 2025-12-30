@@ -3,7 +3,7 @@ import { LIBRA_SYSTEM_PROMPT } from "../constants";
 import { QuizConfig, Question, UserSettings } from "../types";
 
 const getApiKey = () => process.env.GEMINI_API_KEY || process.env.API_KEY || '';
-const createClient = () => new GoogleGenAI({ apiKey: getApiKey(), apiVersion: "v1" });
+const createClient = () => new GoogleGenAI({ apiKey: getApiKey(), apiVersion: "v1beta" });
 
 export const getLibraResponse = async (history: { role: string; content: string }[]) => {
   // Re-initialize to ensure the latest API Key is used if it changes
@@ -98,24 +98,29 @@ export const generateQuizQuestions = async (config: QuizConfig, userPreferences?
     }
   };
 
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-        temperature: 0.7,
-      },
-    });
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-1.5-flash",
+        contents: prompt,
+        config: {
+          temperature: 0.7,
+        },
+      });
 
-    const jsonText = response.text;
-    if (!jsonText) {
-      throw new Error("Empty response from AI");
-    }
-    
-    // Parse JSON and ensure IDs are unique if the AI duplicated them (rare but possible)
-    const questions = JSON.parse(jsonText) as Question[];
+      let jsonText = response.text;
+      if (!jsonText) {
+        throw new Error("Empty response from AI");
+      }
+
+      // Clean markdown if present
+      if (jsonText.includes('```json')) {
+        jsonText = jsonText.split('```json')[1].split('```')[0].trim();
+      } else if (jsonText.includes('```')) {
+        jsonText = jsonText.split('```')[1].split('```')[0].trim();
+      }
+      
+      // Parse JSON and ensure IDs are unique if the AI duplicated them (rare but possible)
+      const questions = JSON.parse(jsonText.trim()) as Question[];
     return questions.map((q, index) => ({
       ...q,
       id: `ai-gen-${index}-${Date.now()}` // Ensure unique ID on client side

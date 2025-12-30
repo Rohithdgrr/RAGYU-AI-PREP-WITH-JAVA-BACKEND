@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { QuizConfig as IQuizConfig, Question, QuizResult, QuizMode, PlayerResult, UserSettings } from '../types';
 import FormattedText from './FormattedText';
-import { generateQuizQuestions } from '../services/geminiService';
+import { generateQuizQuestions } from '../services/mistralService';
 import { UserIcon, UsersIcon, XMarkIcon, ChevronLeftIcon, ChevronRightIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 
 interface QuizSessionProps {

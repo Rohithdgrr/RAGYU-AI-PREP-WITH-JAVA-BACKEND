@@ -2,9 +2,11 @@ import React from 'react';
 
 interface FormattedTextProps {
   content: string;
+  inline?: boolean;
+  className?: string;
 }
 
-const FormattedText: React.FC<FormattedTextProps> = ({ content }) => {
+const FormattedText: React.FC<FormattedTextProps> = ({ content, inline, className }) => {
   /**
    * Manually render LaTeX segments using katex.renderToString.
    */
@@ -159,9 +161,14 @@ const FormattedText: React.FC<FormattedTextProps> = ({ content }) => {
     return html;
   };
 
+  const Tag = inline ? 'span' : 'div';
+  const baseClasses = inline
+    ? 'formatted-inline text-gray-800 leading-relaxed break-words'
+    : 'formatted-content text-gray-800 leading-relaxed break-words text-sm md:text-base font-inter';
+
   return (
-    <div 
-      className="formatted-content text-gray-800 leading-relaxed break-words text-sm md:text-base font-inter"
+    <Tag
+      className={`${baseClasses} ${className ?? ''}`.trim()}
       dangerouslySetInnerHTML={{ __html: processContent(content) }}
     />
   );

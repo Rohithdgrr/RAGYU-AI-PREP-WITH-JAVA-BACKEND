@@ -290,9 +290,11 @@ if (activePlayer === 1) {
                 }`}>
                   {String.fromCharCode(65 + idx)}
                 </div>
-                <span className={`text-base font-bold tracking-tight transition-colors ${isSelected ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-800'}`}>
-                  {option}
-                </span>
+                <FormattedText
+                  content={option}
+                  inline
+                  className={`text-base font-bold tracking-tight transition-colors ${isSelected ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-800'}`}
+                />
                 {isSelected && (
                   <div className={`absolute right-6 w-3 h-3 rounded-full animate-ping ${activePlayer === 1 ? 'bg-blue-400' : 'bg-rose-400'}`} />
                 )}

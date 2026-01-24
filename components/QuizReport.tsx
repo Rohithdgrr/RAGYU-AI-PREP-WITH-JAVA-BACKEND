@@ -127,14 +127,24 @@ const QuizReport: React.FC<QuizReportProps> = ({ result, config, onDone }) => {
                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className={`p-4 rounded-xl border ${ans.isCorrect ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Your Answer</p>
-                      <p className={`font-bold ${ans.isCorrect ? 'text-emerald-700' : 'text-rose-700'}`}>
-                        {ans.selectedOption !== null ? question.options[ans.selectedOption] : 'Skipped'}
-                      </p>
+                      {ans.selectedOption !== null ? (
+                        <FormattedText
+                          content={question.options[ans.selectedOption]}
+                          inline
+                          className={`font-bold ${ans.isCorrect ? 'text-emerald-700' : 'text-rose-700'}`}
+                        />
+                      ) : (
+                        <p className="font-bold text-gray-500">Skipped</p>
+                      )}
                     </div>
                     {!ans.isCorrect && (
                       <div className="p-4 rounded-xl border bg-emerald-50 border-emerald-100">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Correct Answer</p>
-                        <p className="font-bold text-emerald-700">{question.options[question.correctIndex]}</p>
+                        <FormattedText
+                          content={question.options[question.correctIndex]}
+                          inline
+                          className="font-bold text-emerald-700"
+                        />
                       </div>
                     )}
                  </div>

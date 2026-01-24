@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { EXAM_CATEGORIES, SYLLABUS } from '../constants';
 import { Difficulty, QuizMode, QuizConfig as IQuizConfig } from '../types';
-import { UserIcon, UsersIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
+import { UserIcon, UsersIcon, CheckCircleIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
 interface QuizConfigProps {
   onStart: (config: IQuizConfig) => void;
@@ -127,23 +127,47 @@ const QuizConfig: React.FC<QuizConfigProps> = ({ onStart }) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Player 1 Name</label>
-              <input 
-                type="text" 
-                value={config.player1Name} 
-                onChange={(e) => setConfig({ ...config, player1Name: e.target.value })}
-                className="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-2xl text-sm font-medium text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                placeholder="Enter Name"
-              />
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={config.player1Name} 
+                  onChange={(e) => setConfig({ ...config, player1Name: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-2xl text-sm font-medium text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all pr-10"
+                  placeholder="Enter Name"
+                />
+                {config.player1Name && (
+                  <button
+                    type="button"
+                    onClick={() => setConfig({ ...config, player1Name: '' })}
+                    className="absolute inset-y-0 right-2 flex items-center justify-center w-7 h-7 rounded-xl text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                    aria-label="Clear player 1 name"
+                  >
+                    <XMarkIcon className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Player 2 Name</label>
-              <input 
-                type="text" 
-                value={config.player2Name} 
-                onChange={(e) => setConfig({ ...config, player2Name: e.target.value })}
-                className="w-full px-4 py-2.5 bg-white border border-rose-200 rounded-2xl text-sm font-medium text-gray-700 focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all"
-                placeholder="Enter Name"
-              />
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={config.player2Name} 
+                  onChange={(e) => setConfig({ ...config, player2Name: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-white border border-rose-200 rounded-2xl text-sm font-medium text-gray-700 focus:ring-2 focus:ring-rose-500 focus:border-transparent outline-none transition-all pr-10"
+                  placeholder="Enter Name"
+                />
+                {config.player2Name && (
+                  <button
+                    type="button"
+                    onClick={() => setConfig({ ...config, player2Name: '' })}
+                    className="absolute inset-y-0 right-2 flex items-center justify-center w-7 h-7 rounded-xl text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                    aria-label="Clear player 2 name"
+                  >
+                    <XMarkIcon className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </section>
